@@ -42,8 +42,7 @@ react-native init AwesomeProject这一步，约等于
     npm install react-native --save
     copy模板（index.ios.js等）
 
-简述一下npm shrinkwrap命令的作用，npm shrinkwrap在项目根目录下产生了一个npm-shrinkwrap.json文件，<b>这个文件锁定了整个项目依赖的第三方组件版本</b>。
-因为npm上众多的源采用Semantic的版本标准，不可避免的出现这样的情况
+npm shrinkwrap这一步在项目根目录下产生了一个npm-shrinkwrap.json文件，<b>这个文件锁定了整个项目依赖的第三方组件版本</b>。因为npm上众多的源采用Semantic的版本标准，不可避免的出现这样的情况
 > A@0.0.1 -> ^B@0.0.1
 
 项目中运用了A@0.0.1的模块，依赖树可能是这样的
@@ -54,6 +53,41 @@ react-native init AwesomeProject这一步，约等于
 
 npm-shrinkwrap.json则可以避免这一问题的产生，因为npm install命令在构建依赖树时，package.json和npm-shrinkwrap.json文件都会产生影响，npm-shrinkwrap.json的优先级更高。
 
-##### 跨团队合作
+shrinkwrap这一步非常重要，他保证了项目依赖树不会随着时间推移而产生变化。它保证开发、测试和上线这样一段时间内，每次构建的时候，产生的内容一致。
 
-#####
+##### 跨团队合作
+Shrinkwrap跨团队失效
+
+##### Win，Linux，Mac
+Shrinkwrap跨平台不稳定
+
+<!-- npm2，npm3策略不同 -->
+
+### 挖一挖npm publish和npm install命令，看看npm-shrinkwrap.json怎么影响install过程
+##### npm publish命令
+众所周知，npm publish是将模块发布到npm源的命令。publish过程是什么？我们找个模块来看看。
+![npm-publish-log](./images/npm-publish-log.png)
+
+看来publish主要分为两步：
+1. 将代码打成tgz包，并放在npm的cache目录下。在这一步，.npm-ignore文件和package.json内的files字段配置都可以配置tgz所包含的内容。在不做任何配置的情况下，npm-shrinkwrap.json会被压进tgz包。
+2. 上传tgz并更新npm源。
+
+#### npm install jquery
+我们运行npm install jQuery --save --verbose，从日志来简单看看npm install命令会发生什么事情。这里挑选jQuery作为例子，因为jQuery是最常用却并不依赖其他模块（所以jQuery包里没有npm-shrinkwrap.json)，有助于我们厘清单个模块的安装顺序。
+![npm-install-log-1](./images/npm-install-log-1.png)
+
+可以看到，对最简单的一个模块的install过程，主要分为3步
+1. 从[https://registry/jquery](https://registry/jquery)上获取安装包的信息，包含了版本历史、依赖、作者和各个版本的tgz下载链接等等。
+2. 下载第一步的结果得知的tgz链接。
+3. 解压缩。
+
+
+
+
+
+
+
+### 方案
+
+
+### 总结
