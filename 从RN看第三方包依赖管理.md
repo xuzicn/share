@@ -18,21 +18,22 @@
 
 
 ### RN包依赖问题的产生的原因
-##### mini项目组应用RN
-开始一个新的项目，基本上是这样的。拓荒者建立起基本的项目模板并推入代码仓库：
+
+##### 单个项目组应用RN
+对于开发者来说，开始一个新的项目，基本上是这样的。首先，拓荒者建立起基本的项目模板并推入代码仓库：
 
     npm install react-native-cli -g
     react-native init AwesomeProject
     npm shrinkwrap
     git push
 
-其他开发者：
+然后，其他开发者clone仓库：
 
     npm install react-native-cli -g
     git clone
     npm install
 
-npm shrinkwrap这一步在项目根目录下产生了一个npm-shrinkwrap.json文件，<b>这个文件锁定了整个项目依赖的第三方组件版本</b>。因为npm上众多的源采用Semantic的版本标准，存在大量的这样的情况
+注意一下npm shrinkwrap，这一步在项目根目录下产生了一个npm-shrinkwrap.json文件，<b>这个文件锁定了整个项目依赖的第三方组件版本</b>。因为npm上众多的源采用Semantic的版本标准，存在大量的这样的情况
 > A@0.0.1 -> ^B@0.0.1
 
 如果项目中运用了A@0.0.1的模块，首次install后，依赖树可能是这样的
@@ -41,11 +42,13 @@ npm shrinkwrap这一步在项目根目录下产生了一个npm-shrinkwrap.json�
 如果没有shrinkwrap这一步，当B模块发布了0.0.2版本后，其他开发者重新clone代码仓库并且npm install之后，依赖树就变成
 > project -> A@0.0.1 -> B@0.0.2
 
-npm-shrinkwrap.json则可以避免这一问题的产生，因为npm install命令在构建依赖树时，package.json和npm-shrinkwrap.json文件都会产生影响，npm-shrinkwrap.json的优先级更高。这一步非常重要，它保证开发、测试和上线这样一段时间内，每次构建的时候，产生的内容一致。这是对产品稳定性的重要的保障手段。
+npm-shrinkwrap.json则可以避免这一问题的产生，因为npm install命令在构建依赖树时，package.json和npm-shrinkwrap.json文件都会产生影响，而npm-shrinkwrap.json的优先级更高。这一步非常重要，它保证了一个项目在开发、测试和上线这样一个相对较长的时间内，每个阶段构建代码的时候产生的内容一致。这是对产品稳定性的重要的保障手段。
 
 ##### 众多业务线共同使用RN
-我们之前已经提到多个业务线共同使用RN的情况下，拆包是一个必须的过程。在这个前提之下，npm shrinkwrap失效了。因为，在构建platform.bundle时的依赖树，随着第三方模块的更新，慢慢的变形了；新的业务线在随后加入RN开发时，无法保证他们拥有一致的依赖树，那么在开发测试和发布中，也无法保证构建的产物完全一致。
-更麻烦的是，对于Windows和Linux用户来说，RN有一个只适用于OS X的可选依赖模块fsevents，如果使用Mac系统产生npm-shrinkwrap.json并提交到代码库，Windows的开发者将无法完成npm install的过程。
+我们之前已经提到多个业务线共同使用RN的情况下，拆包是一个必须的过程。在这个场景之下，由于RN的官方包内没有加入shrinkwrap，保证众多开发组的依赖树的一致性就变成了问题。试想一下，在公共技术组发布platform.bundle后，如果有关键组件发布了更新，业务部门在install react-native时一定会产生一个不同的依赖树结构；在依赖树都不稳定的情况下，拆开的platform.bundle和biz.bundle会发生什么问题是无法预测的。
+
+
+退一步讲，对于不考虑拆包，但是Windows开发者和OS X混搭的开发组来说，仅仅使用npm shrinkwrap锁定依赖树也是不可行的，因为RN依赖了一个OS X专有的模块fsevents。Mac系统shrinkwrap、签入代码后，Windows系统根本就无法运行npm install，fsevents挡住了windows的安装。
 
 讨论解决方案之前，我们先挖一挖npm publish和npm install命令，看看npm-shrinkwrap.json怎么影响install过程。
 
