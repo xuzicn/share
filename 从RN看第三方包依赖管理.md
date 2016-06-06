@@ -62,6 +62,7 @@ npm-shrinkwrap.json则可以避免这一问题的产生，因为npm install命�
 ![npm-publish-log](./images/npm-publish-log.png)
 
 我认为可以将publish分为两步：
+
 1. 将代码打成tgz包，并放在npm的cache目录下。在这一步，.npm-ignore文件和package.json内的files字段配置都可以配置tgz所包含的内容。npm-shrinkwrap.json会被压进tgz包，这一点将在后面验证。
 2. 上传tgz并更新npm源。
 
@@ -167,12 +168,14 @@ npm大约在3.7.x前后（2016年年初）修复了一版shrinkwrap的平台依�
 
 ###### 设想
 明白了shrinkwrap和install的过程，那么我猜想这样的方式应该可行：
+
 1. 我们需要提供针对不同操作系统的react-native压缩包，内里分别包含不同系统的npm-shrinkwrap.json，例如对于0.20.0，分别提供react-native-0.20.0-shrinked-darwin.tgz、react-native-0.20.0-shrinked-win32.tgz、react-native-0.20.0-shrinked-linux.tgz。为了避免依赖树的变形，这个三个系统的压缩包是在同一时刻生成的。
 2. 可能需要一个内网的http服务或者共享的文件托管服务，提供压缩包的下载。
 3. 需要有服务或者命令，能够方便的生成这三份不同的压缩包。
 4. 对于业务的开发者或者发布机，我们需要一个命令，能够根据操作系统选择性的下载修改后的rn的压缩包进行安装。
 
 http服务不是问题，方案很多。那么现在需要问的就是：
+
 1. 怎样为Windows，OSX和Linux打出一个可以安装的rn压缩包？
 2. 什么样的命令可以帮助使用者安装正确版本的RN？
 
@@ -180,6 +183,7 @@ http服务不是问题，方案很多。那么现在需要问的就是：
 
 ###### 试一试手打的tgz，并init AwesomeProject
 开始之前，简单介绍一下react-native init命令，react-native init AwesomeProject实际执行了三个步骤：
+
 1. 建立AwesomeProject文件夹，并放入一个简单的package.json
 2. 在AwesomeProject内，运行npm install react-native --save
 3. 将模板拷贝到AwesomeProject文件夹内。
@@ -236,6 +240,7 @@ ok，我们开始为Mac系统创造一个手打的包。以qunar正在使用0.20
 
 ### 方案
 那么我们总结一下针对RN锁定依赖树的方案：
+
 1. 内网搭建一个简单的http下载服务或者文件托管服务，提供三个平台的tgz下载
 2. 给手打tgz包的命令稍做增强，使其能生成三个tgz并分发给http或者文件托管系统。这里需要一个Mac、一个Linux和一个Windows的机器分别来做这个事情。
 3. 建立一个简单的Node脚本，辅助RN的init工作（复刻上面init的过程）；考虑到package.json是多平台公用，在新的init脚本后，需要将dependencies内的rn依赖从文件系统的地址改回正确的rn版本号（上面的例子应该改回0.20.0）。
