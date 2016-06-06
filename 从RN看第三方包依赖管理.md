@@ -50,30 +50,30 @@ npm-shrinkwrap.json则可以避免这一问题的产生，因为npm install命�
 
 退一步讲，对于不考虑拆包，但是Windows开发者和OS X混搭的开发组来说，仅仅使用npm shrinkwrap锁定依赖树也是不可行的，因为RN依赖了一个OS X专有的模块fsevents。Mac系统shrinkwrap、签入代码后，Windows系统根本就无法运行npm install，fsevents挡住了windows的安装。
 
-讨论解决方案之前，我们先挖一挖npm publish和npm install命令，看看npm-shrinkwrap.json怎么影响install过程。
+讨论解决方案之前，我们先挖一挖npm publish和npm install命令，看看npm-shrinkwrap.json是怎样影响install过程的。在后续的讨论内，很多地方使用了qnpm命令，qnpm是qunar内网的一个和npm同步的源，qunar内部也有很多私有模块在qnpm源上。后续讨论中需要发布一些测试用的模块。因为left-pad事件后，npm公源修改了unpublish的规定，为了少制造垃圾，测试放在私有源上。
 
 <!-- npm2，npm3策略不同 -->
 
 
 ### 挖一挖npm publish和npm install命令
-在后续的讨论内，很多地方使用了qnpm命令，qnpm是qunar内网的一个和npm同步的源，qunar内部也有很多私有模块在qnpm源上。后续讨论中需要发布一些测试用的模块。因为left-pad事件后，npm公源修改了unpublish的规定，为了少制造垃圾，测试放在私有源上。
 
 ##### npm publish过程解析
-众所周知，npm publish是将模块发布到npm源的命令。publish过程是什么？我们找个模块来看看日志，做一个感性的认知。
+先来看看publish过程。众所周知，npm publish是将模块发布到npm源的命令。publish过程是怎样的？我们发布一个模块试试，做一个感性的认知。
 ![npm-publish-log](./images/npm-publish-log.png)
 
 我认为可以将publish分为两步：
-1. 将代码打成tgz包，并放在npm的cache目录下。在这一步，.npm-ignore文件和package.json内的files字段配置都可以配置tgz所包含的内容。在不做任何配置的情况下，npm-shrinkwrap.json会被压进tgz包，这一点将在后面验证。
+1. 将代码打成tgz包，并放在npm的cache目录下。在这一步，.npm-ignore文件和package.json内的files字段配置都可以配置tgz所包含的内容。npm-shrinkwrap.json会被压进tgz包，这一点将在后面验证。
 2. 上传tgz并更新npm源。
 
 #### npm install过程解析
-开始这一节之前，我们先约定一个不甚确切的名字“简洁模块”。一个模块在分发后，不依赖于其他任何模块，就称为“简洁”模块，例如jQuery@2.\*；否则，称为“非简洁”模块，例如react-native。注意这不是通用的叫法，只适用于本次的谈论。在写下这篇讨论时，jquery最新版为2.2.4。
+开始分析install过程之前，我们先约定一个“简洁模块”的叫法。一个模块在install之后，不会引入于其他任何模块，就称为“简洁”模块，例如jQuery@2.\*；否则，称为“非简洁”模块，例如react-native。注意这不是通用的叫法，只适用于本次的谈论。在写下这篇讨论时，jquery最新版为2.2.4。
 
 ###### npm install一个“简洁”模块
-我们调高npm的日志等级，使用npm install jQuery --save --verbose，简单看看npm install命令会发生什么事情。
+使用npm install jquery --verbose安装jquery，简单看看npm install命令会发生什么事情。
 ![npm-install-log-1](./images/npm-install-log-1.png?_)
 
 可以看到，对“简洁模块”的install过程，主要分为3步
+
 1. http get了一个地址[https://registry/jquery](https://registry/jquery)。可以在Chrome内打开链接自行尝试，这个http的链接内是jquery这个模块的基本信息，包含了版本历史、依赖、作者和各个版本的tgz下载链接等等。由于我们没有指定安装版本，这个http返回的信息内的下载链接是jquery@2.2.4版的。
 2. 下载第一步的结果得知的tgz链接，并解析tgz的依赖。
 3. 解压缩jquery.tgz包到node_modules并完成安装过程。
