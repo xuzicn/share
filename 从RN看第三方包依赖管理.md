@@ -3,16 +3,16 @@
 
 ![official-context](./images/official-context.png)
 
-这明显不适合多团队合作，因为众多业务线的代码都在一个JSCore内会互相影响。合理的结构首先应该是各个业务线拥有自己的JSCore，保持上下文的隔离。
-同时一个RN的js bundle体积非常庞大，即使不加入一行业务代码，minify之后仍然有600k左右，那么将RN自身的代码和业务代码拆开打包，是必须要做的一件事。
+这明显不适合多团队合作，一个JSCore内代码会互相影响。业务线越多，互相影响就越大。应该是各个业务线拥有自己的JSCore，保持上下文这一级的隔离。
+同时一个RN的js bundle体积非常庞大，即使不加入任何业务代码，minify之后仍然有600k左右，那么将RN自身的代码和业务代码拆开打包，也是必须要做的一件事。
 
-所以对于一家业务线众多的公司而言，RN的运行结构应该是，将拆分出的RN代码打包成platform.bundle内置在应用里；其他业务包打包成biz.bundle，交给各个JSCore单独加载。去哪儿已经完成了这一步的改造，大略的结构变为：
+所以对业务线众多的公司而言，RN的运行结构应该是这样：将拆分出的RN代码拆包为platform.bundle和biz.bundle；platform.bundle内置在应用里作为公用的基础JS库，每一个JSCore启动时，首先应加载platform.bundle；在platform.bundle加载结束后，再通过网络或者离线包加载biz.bundle。去哪儿已经完成了这一步的改造，大略的结构变为：
 
 ![qunar-context](./images/qunar-context.png)
 
-在业务的日常开发时，我们提供一个简单的壳应用，这个壳应用通过本地的http开发服务（react-native-packager)，动态的加载platform.bundle和biz.bundle；在一个新的业务上线的时候，我们只需要在服务器上放入一个小的biz.bundle即可。
+在完成上述改造的同时，我们也为业务开发的同事提供一个简单的壳应用，这个壳应用通过本地的http开发服务（react-native-packager)，动态的加载platform.bundle和biz.bundle；在一个新的业务上线的时候，我们只需要在服务器上放入一个小的biz.bundle即可。
 
-我们在修改官版RN的过程中，遇到一个需要解释的问题，就是React Native包依赖众多（1000多个npm包），无法构成稳定的跨平台开发、打包、测试环境；同时，我们从github上fork过来的react-native@0.20.0版的代码，在npm install的时候，经常被网络错误随机中断在某个模块，但是单个安装这个模块又没有问题。
+但是，在我们在修改官版RN的过程中，遇到两个问题，首先就是React Native包依赖众多（1000多个npm包），无法构成稳定的跨平台开发、打包、测试环境；同时，我们从github上fork过来的react-native@0.20.0版的代码，在npm install的时候，经常被网络错误随机中断在某个模块，但是单个安装中断的模块又没有问题。
 
 我们一起来看一看，这两个问题的产生原因。
 
