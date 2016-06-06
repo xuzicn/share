@@ -117,13 +117,13 @@ addRemoteTarball这个操作，执行了tgz的下载操作，并且将下载文�
     qnpm shrinkwrap
     qnpm publish
 
-重新检验一下服源上的tgz的内容，发现npm-shrinkwrap.json已经被压入了压缩包，证实了之前的推断。
+重新检验一下服源上的tgz的内容，发现npm-shrinkwrap.json已经被压入了压缩包。
 ![tar-log-zilongA-0.0.2](./images/tar-log-zilongA-0.0.2.png)
 
 npm install @qnpm/zilong-a@0.0.2 --loglevel=silly。检查对比安装0.0.1版本的日志，发现install过程产生了变化，截取中间重要变化来说明问题，看截图：
 ![npm-install-log-2](./images/npm-install-log-2.png)
 
-我们发现，在解析完zilong-a@0.0.2的依赖时，加入了addShrinkwrap的步骤，这一步读取了npm-shrinkwrap.json内容；然后直接进入了jquery@2.2.0的下载和解析步骤，没有从npm上获取jquery的基本信息，jquery的安装过程被提前了。这一次尝试后，我们初步厘清了npm-shrinkwrap.json对安装过程的影响。
+我们发现，在解析完zilong-a@0.0.2的依赖时，加入了addShrinkwrap的步骤，这一步读取了npm-shrinkwrap.json内容；然后直接进入了jquery@2.2.0的下载和解析步骤，并没有从npm上获取jquery的基本信息，也就是说jquery的安装过程被提前了。这一次尝试后，我们初步厘清了npm-shrinkwrap.json对安装过程的影响，即npm-shrinkwrap.json不仅影响安装结果，也会改变安装的下载顺序。
 
 梳理zilong-a@0.0.2一下目前的依赖结构，目前只有两级：
 >  @qnpm/zilong-a@0.0.2 > jquery@2.2.0
@@ -135,34 +135,34 @@ npm install @qnpm/zilong-a@0.0.2 --loglevel=silly。检查对比安装0.0.1版�
 我们继续发布@qnpm/zilong-a@0.0.3，使其依赖树加深。首先发布一个@qnpm/zilong-b@0.0.1模块，@qnpm/zilong-b依赖jquery@\*;去掉@qnpm/zilong-a的jquery依赖，加入@qnpm/zilong-b@\*。那么依赖结构变化为：
 >  @qnpm/zilong-a@0.0.3 > @qnpm/zilong-b@0.0.1 > jquery@*
 
-修改package.json后，重置zilong-a模块重新npm shrinkwrap，并发布
+修改package.json后，重置zilong-a模块重新npm shrinkwrap，并发布。
 
     rm -rf node_modules && rm -rf npm-shrinkwrap.json && qnpm install
     qnpm shrinkwrap
     qnpm publish
 
-zilong-a@0.0.3模块依赖被锁定为 @qnpm/zilong-b@0.0.1和最新的jquery@2.2.4。那么install @qnpm/zilong-a@0.0.3会怎样？
+由于删除node_modules，这次发布的@qnpm/zilong-a@0.0.3对jquery的依赖被锁定为2.2.4版。那么install @qnpm/zilong-a@0.0.3会怎样？
 
 
 这一次又产生了有趣的变化，虽然@qnpm/zilong-a的package.json内并没有声明对jquery的依赖，由于npm-shrinkwrap.json包含了jquery和@qnpm/zilong-b的信息，jquery的安装过程和@qnpm/zilong-b同时开始了。
 ![npm-install-log-3](./images/npm-install-log-3.png)
 
-可见shrinkwrap不仅仅影响了npm install时的版本判断，而且改变了下载流程，使得下载过程变成了并行的。
+可见shrinkwrap内的依赖的下载过程是并行的。似乎可以猜到tgz损坏的原因了，巨大的并发量导致了网络拥塞，最终导致下载失败。
 
-然而，官方在npm的github的讨论中说：对于下载请求，没有任何的队列或者限制机制，有多少下载的包，就并发多少。在npm的github有一些讨论是关于这个机制的，起因都是因为开发者使用了第三方源，而源服务器限制了下载请求而导致安装失败。有兴趣的同学可以在分享后参看[issue11117](https://github.com/npm/npm/issues/11117)和 [issue11125](https://github.com/npm/npm/issues/11125)。
+官方在npm的github的讨论中说：对于下载请求，没有任何的队列或者限制机制，有多少下载的包，就并发多少。在npm的github有一些讨论是关于这个机制的，起因都是因为开发者使用了第三方源，而源服务器限制了下载请求而导致安装失败。有兴趣的同学可以在分享后参看[issue11117](https://github.com/npm/npm/issues/11117)和 [issue11125](https://github.com/npm/npm/issues/11125)。
 
-我们似乎找到了tgz文件损坏的原因：对于超级大库而言，庞大的并发请求数量造成巨量的并发请求；在采用不经优化的网络（比如GFW墙内访问墙外），文件坏掉的可能性增加。shrinkwrap加剧了这个问题。
+在采用不经优化的网络（比如GFW墙内访问墙外）上使用超级大库，shrinkwrap可能会加剧网络问题。
 
-搞清楚原因，tgz损坏的故障就是小case，我们fork过来的react-native源代码内的npm-shrinkwrap的模块地址全部指向了npm公有源，简单的做一下替换，全部切换到qunar的私有源上或者cnpm源上，基本就解决了安装失败的问题。
+搞清楚原因，tgz损坏的故障就是小case，我们fork过来的react-native源代码内的npm-shrinkwrap的模块地址全部指向了npm公有源，简单的做一下替换，全部切换到私有源上或者cnpm源上，基本就解决了安装失败的问题。网络问题很easy的解决了，但是包依赖的问题还在。
 
 ### 探讨可能的方案
-网络问题很easy的解决了，但是包依赖的问题还在。在考虑解决方式前，我们先看一下react-native官方对于shrinkwrap的态度，理一理可能的方向。
+在考虑解决方式前，我们先看一下react-native官方对于shrinkwrap的态度，看看官方有没有可能解决这个问题。
 
-###### react-native官方对于shrinkwrap的态度
-查阅github提交记录可以发现，直到0.22.0-rc2之前，rn项目的根目录下都有npm-shrinkwrap.json文件；有意思的是，从npm源直接下载的tgz的文件内不包含这个文件。也就是说，facebook的开发们一度使用shrinkwrap统一了所有RN contributor的依赖树，但是并不打算统一其他RN使用者的依赖树。官版对于锁定版本的态度是模糊的。在社区的要求下，facebook将npm-shrinkwrap.json加入了0.22.0-rc2，然后社区内的尝鲜者们反映了安装失败的问题。大约一个钟头后，官方不仅从发布的脚本内删除了npm shrinkwrap命令，并且坚决的从github的目录内删除了npm-shrinkwrap.json文件。fb的一位开发者事后在自己的facebook上回顾这个事件并如是说：
+<!-- ###### react-native官方对于shrinkwrap的态度 -->
+查阅github提交记录可以发现，直到0.22.0-rc2之前，rn项目的根目录下都有npm-shrinkwrap.json文件；有意思的是，从npm源直接下载的tgz的文件内不包含这个文件。也就是说，facebook的开发们曾经使用shrinkwrap统一了所有RN contributor的依赖树，但是并不打算统一其他RN使用者的依赖树。这时，官版对于锁定版本的态度是模糊的。在社区的要求下，facebook将npm-shrinkwrap.json加入了0.22.0-rc2，然后社区内的尝鲜者们反映了安装失败的问题。大约一个钟头后，官方不仅从发布的脚本内删除了npm shrinkwrap命令，并且坚决的从github的目录内删除了npm-shrinkwrap.json文件。fb的一位开发者事后在自己的facebook上回顾这个事件并如是说：
 > ... This（注：就是npm-shrinkwrap.json文件） was added in one of the -rc releases, so finding it was fairly easy. I can't be 100% certain what was the reason, npm client is a big box of wonders.
 
-直到今天官版也没有再将这个文件加回来，可见友谊的小船已翻了个底儿朝天。
+直到今天官版也没有再将这个文件加回来，可见友谊的小船已翻了个底儿朝天，大概短期内我们再也不会在官版发布的模块里看见shrinkwrap的身影了。
 
 <!-- ###### npm对于shrinkwrap的态度
 npm大约在3.7.x前后（2016年年初）修复了一版shrinkwrap的平台依赖问题，他们的策略是“对于npm-shrinkwrap.json内的平台不兼容的模块，打出一个[warning]或者[info]及的log，然后继续安装。”这个方式感觉不是那么完美，但是对于大部分模块来说，似乎已经足够了（仍然有少量ubuntu用户在3.8.x报错）。
@@ -174,15 +174,15 @@ npm大约在3.7.x前后（2016年年初）修复了一版shrinkwrap的平台依�
 ###### 设想
 明白了shrinkwrap和install的过程，那么我猜想这样的方式应该可行：
 
-1. 我们需要提供针对不同操作系统的react-native压缩包，内里分别包含不同系统的npm-shrinkwrap.json，例如对于0.20.0，分别提供react-native-0.20.0-shrinked-darwin.tgz、react-native-0.20.0-shrinked-win32.tgz、react-native-0.20.0-shrinked-linux.tgz。为了避免依赖树的变形，这个三个系统的压缩包是在同一时刻生成的。
-2. 可能需要一个内网的http服务或者共享的文件托管服务，提供压缩包的下载。
-3. 需要有服务或者命令，能够方便的生成这三份不同的压缩包。
+1. 我们需要针对不同操作系统提供定制的react-native压缩包，他们包含了不同系统的npm-shrinkwrap.json，例如对于0.20.0，分别提供react-native-0.20.0-shrinked-darwin.tgz、react-native-0.20.0-shrinked-win32.tgz、react-native-0.20.0-shrinked-linux.tgz。为了避免依赖树的差距，这个三个系统的压缩包是在同一时刻生成的。
+2. 需要有服务或者命令，能够方便的生成这三份不同的压缩包。
+3. 可能需要一个内网的http服务或者共享的文件托管服务，提供压缩包的下载。
 4. 对于业务的开发者或者发布机，我们需要一个命令，能够根据操作系统选择性的下载修改后的rn的压缩包进行安装。
 
 http服务不是问题，方案很多。那么现在需要问的就是：
 
 1. 怎样为Windows，OSX和Linux打出一个可以安装的rn压缩包？
-2. 什么样的命令可以帮助使用者安装正确版本的RN？
+2. 怎样帮助使用者安装正确版本的RN？
 
 我们试试手打一个react-native-0.20.0-shrinked-darwin.tgz，并且用这个包来初始化一个项目。
 
@@ -201,11 +201,11 @@ ok，我们开始为Mac系统创造一个手打的包。以qunar正在使用0.20
 
 这三个命令就是从淘宝源下载tgz、解压tgz、install和shrinkwrap，最后移除node_modules。
 
-我们对文件做一个小小的修改，以验证我们自己的tgz也可以生效。我们将npm-shrinkwrap.json内的diff@2.2.3修改为diff@2.2.2，并且重新压缩。
+我们对npm-shrinkwrap.json文件做一个小小的修改，以验证我们自己的tgz也可以生效。我们将npm-shrinkwrap.json内的diff@2.2.3修改为diff@2.2.2，并且重新压缩。
 
 ![change-shrinkwrap](./images/change-shrinkwrap.png)
 
-     cd .. && tar zcvf react-native-0.20.0-shrinked-darwin.tgz package
+    cd .. && tar zcvf react-native-0.20.0-shrinked-darwin.tgz package
 
 命令结束后，在目录下已经有了一个react-native-0.20.0-shrinked-darwin.tgz。至此，我们已经获得了一个为Mac系统定制的rn压缩包。我们来尝试用这个文件来创建一个名叫AwesomeProject的rn项目。下一步需要将react-native-0.20.0-shrinked-darwin.tgz安装进来。
 
