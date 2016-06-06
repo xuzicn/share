@@ -80,7 +80,7 @@ npm-shrinkwrap.json则可以避免这一问题的产生，因为npm install命�
 3. 解压缩jquery.tgz包到node_modules并完成安装过程。
 
 第二步复杂一点，稍作解释：
-addRemoteTarball这个操作，执行了tgz的下载操作，并且将下载文件放置入了npm的cache目录内；addTmpTarball这一步操作，会读取jquery@2.2.4的依赖（从缓存，缓存中没有则立即解压tgz并读取package.json），决定是否需要继续安装其他模块。
+addRemoteTarball这个操作，执行了tgz的下载操作，并且将下载文件放置入了npm的cache目录内；addTmpTarball这一步操作，会读取jquery@2.2.4的依赖，首先从缓存的元数据中读取，缓存中没有则立即解压tgz并读取package.json，随后决定是否需要继续安装其他模块。
 
 那么npm install一个“非简洁”模块会怎样？
 
@@ -98,8 +98,13 @@ addRemoteTarball这个操作，执行了tgz的下载操作，并且将下载文�
 我们准备开始install“非简洁模块”。为了更好的认知这个过程，在这次install需要把日志等级继续调高，npm install @qnpm/zilong-a@0.0.1 --loglevel=silly。silly这一级的日志已经爆长，阅读起来非常困难，不再贴图，我归纳一下过程：
 
 <!-- ![npm-install-log-silly-1](./images/npm-install-log-silly-1.png?_) -->
+前两步和安装jquery一样，下载&解析。
+
 1. 从[https://registry/zilongA](https://registry/zilongA)上获取安装包的信息，包含了版本历史、依赖、作者和各个版本的tgz下载链接等等。
 2. 下载第一步的结果得知的tgz链接，解压缩zilong-a.tgz包，读取package.json的dependencies，发现其中的有jquery依赖。
+
+得知了jquery的依赖后
+
 3. 重复步骤1和2，并下载jquery.tgz。
 4. 解压各个tgz包到node_modules。
 
