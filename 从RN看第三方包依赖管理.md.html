@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html>
+  <head>
+      <meta charset="utf-8" />
+      <title>从RN看第三方包依赖管理</title>
+      <style>.markdown-preview:not([data-use-github-style]) { padding: 2em; font-size: 1.2em; color: rgb(171, 178, 191); overflow: auto; background-color: rgb(40, 44, 52); }
+.markdown-preview:not([data-use-github-style]) > :first-child { margin-top: 0px; }
+.markdown-preview:not([data-use-github-style]) h1, .markdown-preview:not([data-use-github-style]) h2, .markdown-preview:not([data-use-github-style]) h3, .markdown-preview:not([data-use-github-style]) h4, .markdown-preview:not([data-use-github-style]) h5, .markdown-preview:not([data-use-github-style]) h6 { line-height: 1.2; margin-top: 1.5em; margin-bottom: 0.5em; color: rgb(255, 255, 255); }
+.markdown-preview:not([data-use-github-style]) h1 { font-size: 2.4em; font-weight: 300; }
+.markdown-preview:not([data-use-github-style]) h2 { font-size: 1.8em; font-weight: 400; }
+.markdown-preview:not([data-use-github-style]) h3 { font-size: 1.5em; font-weight: 500; }
+.markdown-preview:not([data-use-github-style]) h4 { font-size: 1.2em; font-weight: 600; }
+.markdown-preview:not([data-use-github-style]) h5 { font-size: 1.1em; font-weight: 600; }
+.markdown-preview:not([data-use-github-style]) h6 { font-size: 1em; font-weight: 600; }
+.markdown-preview:not([data-use-github-style]) strong { color: rgb(255, 255, 255); }
+.markdown-preview:not([data-use-github-style]) del { color: rgb(124, 135, 156); }
+.markdown-preview:not([data-use-github-style]) a, .markdown-preview:not([data-use-github-style]) a code { color: rgb(82, 139, 255); }
+.markdown-preview:not([data-use-github-style]) img { max-width: 100%; }
+.markdown-preview:not([data-use-github-style]) > p { margin-top: 0px; margin-bottom: 1.5em; }
+.markdown-preview:not([data-use-github-style]) > ul, .markdown-preview:not([data-use-github-style]) > ol { margin-bottom: 1.5em; }
+.markdown-preview:not([data-use-github-style]) blockquote { margin: 1.5em 0px; font-size: inherit; color: rgb(124, 135, 156); border-color: rgb(75, 83, 98); border-width: 4px; }
+.markdown-preview:not([data-use-github-style]) hr { margin: 3em 0px; border-top-width: 2px; border-top-style: dashed; border-top-color: rgb(75, 83, 98); background: none; }
+.markdown-preview:not([data-use-github-style]) table { margin: 1.5em 0px; }
+.markdown-preview:not([data-use-github-style]) th { color: rgb(255, 255, 255); }
+.markdown-preview:not([data-use-github-style]) th, .markdown-preview:not([data-use-github-style]) td { padding: 0.66em 1em; border: 1px solid rgb(75, 83, 98); }
+.markdown-preview:not([data-use-github-style]) code { color: rgb(255, 255, 255); background-color: rgb(58, 63, 75); }
+.markdown-preview:not([data-use-github-style]) pre.editor-colors { margin: 1.5em 0px; padding: 1em; font-size: 0.92em; border-radius: 3px; background-color: rgb(49, 54, 63); }
+.markdown-preview:not([data-use-github-style]) kbd { color: rgb(255, 255, 255); border-width: 1px 1px 2px; border-style: solid; border-color: rgb(75, 83, 98) rgb(75, 83, 98) rgb(62, 68, 81); background-color: rgb(58, 63, 75); }
+.markdown-preview[data-use-github-style] { font-family: 'Helvetica Neue', Helvetica, 'Segoe UI', Arial, freesans, sans-serif; line-height: 1.6; word-wrap: break-word; padding: 30px; font-size: 16px; color: rgb(51, 51, 51); overflow: scroll; background-color: rgb(255, 255, 255); }
+.markdown-preview[data-use-github-style] > :first-child { margin-top: 0px !important; }
+.markdown-preview[data-use-github-style] > :last-child { margin-bottom: 0px !important; }
+.markdown-preview[data-use-github-style] a:not([href]) { color: inherit; text-decoration: none; }
+.markdown-preview[data-use-github-style] .absent { color: rgb(204, 0, 0); }
+.markdown-preview[data-use-github-style] .anchor { position: absolute; top: 0px; left: 0px; display: block; padding-right: 6px; padding-left: 30px; margin-left: -30px; }
+.markdown-preview[data-use-github-style] .anchor:focus { outline: none; }
+.markdown-preview[data-use-github-style] h1, .markdown-preview[data-use-github-style] h2, .markdown-preview[data-use-github-style] h3, .markdown-preview[data-use-github-style] h4, .markdown-preview[data-use-github-style] h5, .markdown-preview[data-use-github-style] h6 { position: relative; margin-top: 1em; margin-bottom: 16px; font-weight: bold; line-height: 1.4; }
+.markdown-preview[data-use-github-style] h1 .octicon-link, .markdown-preview[data-use-github-style] h2 .octicon-link, .markdown-preview[data-use-github-style] h3 .octicon-link, .markdown-preview[data-use-github-style] h4 .octicon-link, .markdown-preview[data-use-github-style] h5 .octicon-link, .markdown-preview[data-use-github-style] h6 .octicon-link { display: none; color: rgb(0, 0, 0); vertical-align: middle; }
+.markdown-preview[data-use-github-style] h1:hover .anchor, .markdown-preview[data-use-github-style] h2:hover .anchor, .markdown-preview[data-use-github-style] h3:hover .anchor, .markdown-preview[data-use-github-style] h4:hover .anchor, .markdown-preview[data-use-github-style] h5:hover .anchor, .markdown-preview[data-use-github-style] h6:hover .anchor { padding-left: 8px; margin-left: -30px; text-decoration: none; }
+.markdown-preview[data-use-github-style] h1:hover .anchor .octicon-link, .markdown-preview[data-use-github-style] h2:hover .anchor .octicon-link, .markdown-preview[data-use-github-style] h3:hover .anchor .octicon-link, .markdown-preview[data-use-github-style] h4:hover .anchor .octicon-link, .markdown-preview[data-use-github-style] h5:hover .anchor .octicon-link, .markdown-preview[data-use-github-style] h6:hover .anchor .octicon-link { display: inline-block; }
+.markdown-preview[data-use-github-style] h1 tt, .markdown-preview[data-use-github-style] h2 tt, .markdown-preview[data-use-github-style] h3 tt, .markdown-preview[data-use-github-style] h4 tt, .markdown-preview[data-use-github-style] h5 tt, .markdown-preview[data-use-github-style] h6 tt, .markdown-preview[data-use-github-style] h1 code, .markdown-preview[data-use-github-style] h2 code, .markdown-preview[data-use-github-style] h3 code, .markdown-preview[data-use-github-style] h4 code, .markdown-preview[data-use-github-style] h5 code, .markdown-preview[data-use-github-style] h6 code { font-size: inherit; }
+.markdown-preview[data-use-github-style] h1 { padding-bottom: 0.3em; font-size: 2.25em; line-height: 1.2; border-bottom-width: 1px; border-bottom-style: solid; border-bottom-color: rgb(238, 238, 238); }
+.markdown-preview[data-use-github-style] h1 .anchor { line-height: 1; }
+.markdown-preview[data-use-github-style] h2 { padding-bottom: 0.3em; font-size: 1.75em; line-height: 1.225; border-bottom-width: 1px; border-bottom-style: solid; border-bottom-color: rgb(238, 238, 238); }
+.markdown-preview[data-use-github-style] h2 .anchor { line-height: 1; }
+.markdown-preview[data-use-github-style] h3 { font-size: 1.5em; line-height: 1.43; }
+.markdown-preview[data-use-github-style] h3 .anchor { line-height: 1.2; }
+.markdown-preview[data-use-github-style] h4 { font-size: 1.25em; }
+.markdown-preview[data-use-github-style] h4 .anchor { line-height: 1.2; }
+.markdown-preview[data-use-github-style] h5 { font-size: 1em; }
+.markdown-preview[data-use-github-style] h5 .anchor { line-height: 1.1; }
+.markdown-preview[data-use-github-style] h6 { font-size: 1em; color: rgb(119, 119, 119); }
+.markdown-preview[data-use-github-style] h6 .anchor { line-height: 1.1; }
+.markdown-preview[data-use-github-style] p, .markdown-preview[data-use-github-style] blockquote, .markdown-preview[data-use-github-style] ul, .markdown-preview[data-use-github-style] ol, .markdown-preview[data-use-github-style] dl, .markdown-preview[data-use-github-style] table, .markdown-preview[data-use-github-style] pre { margin-top: 0px; margin-bottom: 16px; }
+.markdown-preview[data-use-github-style] hr { height: 4px; padding: 0px; margin: 16px 0px; border: 0px none; background-color: rgb(231, 231, 231); }
+.markdown-preview[data-use-github-style] ul, .markdown-preview[data-use-github-style] ol { padding-left: 2em; }
+.markdown-preview[data-use-github-style] ul.no-list, .markdown-preview[data-use-github-style] ol.no-list { padding: 0px; list-style-type: none; }
+.markdown-preview[data-use-github-style] ul ul, .markdown-preview[data-use-github-style] ul ol, .markdown-preview[data-use-github-style] ol ol, .markdown-preview[data-use-github-style] ol ul { margin-top: 0px; margin-bottom: 0px; }
+.markdown-preview[data-use-github-style] li > p { margin-top: 16px; }
+.markdown-preview[data-use-github-style] dl { padding: 0px; }
+.markdown-preview[data-use-github-style] dl dt { padding: 0px; margin-top: 16px; font-size: 1em; font-style: italic; font-weight: bold; }
+.markdown-preview[data-use-github-style] dl dd { padding: 0px 16px; margin-bottom: 16px; }
+.markdown-preview[data-use-github-style] blockquote { padding: 0px 15px; color: rgb(119, 119, 119); border-left-width: 4px; border-left-style: solid; border-left-color: rgb(221, 221, 221); }
+.markdown-preview[data-use-github-style] blockquote > :first-child { margin-top: 0px; }
+.markdown-preview[data-use-github-style] blockquote > :last-child { margin-bottom: 0px; }
+.markdown-preview[data-use-github-style] table { display: block; width: 100%; overflow: auto; word-break: keep-all; }
+.markdown-preview[data-use-github-style] table th { font-weight: bold; }
+.markdown-preview[data-use-github-style] table th, .markdown-preview[data-use-github-style] table td { padding: 6px 13px; border: 1px solid rgb(221, 221, 221); }
+.markdown-preview[data-use-github-style] table tr { border-top-width: 1px; border-top-style: solid; border-top-color: rgb(204, 204, 204); background-color: rgb(255, 255, 255); }
+.markdown-preview[data-use-github-style] table tr:nth-child(2n) { background-color: rgb(248, 248, 248); }
+.markdown-preview[data-use-github-style] img { max-width: 100%; box-sizing: border-box; }
+.markdown-preview[data-use-github-style] .emoji { max-width: none; }
+.markdown-preview[data-use-github-style] span.frame { display: block; overflow: hidden; }
+.markdown-preview[data-use-github-style] span.frame > span { display: block; float: left; width: auto; padding: 7px; margin: 13px 0px 0px; overflow: hidden; border: 1px solid rgb(221, 221, 221); }
+.markdown-preview[data-use-github-style] span.frame span img { display: block; float: left; }
+.markdown-preview[data-use-github-style] span.frame span span { display: block; padding: 5px 0px 0px; clear: both; color: rgb(51, 51, 51); }
+.markdown-preview[data-use-github-style] span.align-center { display: block; overflow: hidden; clear: both; }
+.markdown-preview[data-use-github-style] span.align-center > span { display: block; margin: 13px auto 0px; overflow: hidden; text-align: center; }
+.markdown-preview[data-use-github-style] span.align-center span img { margin: 0px auto; text-align: center; }
+.markdown-preview[data-use-github-style] span.align-right { display: block; overflow: hidden; clear: both; }
+.markdown-preview[data-use-github-style] span.align-right > span { display: block; margin: 13px 0px 0px; overflow: hidden; text-align: right; }
+.markdown-preview[data-use-github-style] span.align-right span img { margin: 0px; text-align: right; }
+.markdown-preview[data-use-github-style] span.float-left { display: block; float: left; margin-right: 13px; overflow: hidden; }
+.markdown-preview[data-use-github-style] span.float-left span { margin: 13px 0px 0px; }
+.markdown-preview[data-use-github-style] span.float-right { display: block; float: right; margin-left: 13px; overflow: hidden; }
+.markdown-preview[data-use-github-style] span.float-right > span { display: block; margin: 13px auto 0px; overflow: hidden; text-align: right; }
+.markdown-preview[data-use-github-style] code, .markdown-preview[data-use-github-style] tt { padding: 0.2em 0px; margin: 0px; font-size: 85%; border-radius: 3px; background-color: rgba(0, 0, 0, 0.0392157); }
+.markdown-preview[data-use-github-style] code::before, .markdown-preview[data-use-github-style] tt::before, .markdown-preview[data-use-github-style] code::after, .markdown-preview[data-use-github-style] tt::after { letter-spacing: -0.2em; content: " "; }
+.markdown-preview[data-use-github-style] code br, .markdown-preview[data-use-github-style] tt br { display: none; }
+.markdown-preview[data-use-github-style] del code { text-decoration: inherit; }
+.markdown-preview[data-use-github-style] pre > code { padding: 0px; margin: 0px; font-size: 100%; word-break: normal; white-space: pre; border: 0px; background: transparent; }
+.markdown-preview[data-use-github-style] .highlight { margin-bottom: 16px; }
+.markdown-preview[data-use-github-style] .highlight pre, .markdown-preview[data-use-github-style] pre { padding: 16px; overflow: auto; font-size: 85%; line-height: 1.45; border-radius: 3px; background-color: rgb(247, 247, 247); }
+.markdown-preview[data-use-github-style] .highlight pre { margin-bottom: 0px; word-break: normal; }
+.markdown-preview[data-use-github-style] pre { word-wrap: normal; }
+.markdown-preview[data-use-github-style] pre code, .markdown-preview[data-use-github-style] pre tt { display: inline; max-width: initial; padding: 0px; margin: 0px; overflow: initial; line-height: inherit; word-wrap: normal; border: 0px; background-color: transparent; }
+.markdown-preview[data-use-github-style] pre code::before, .markdown-preview[data-use-github-style] pre tt::before, .markdown-preview[data-use-github-style] pre code::after, .markdown-preview[data-use-github-style] pre tt::after { content: normal; }
+.markdown-preview[data-use-github-style] kbd { display: inline-block; padding: 3px 5px; font-size: 11px; line-height: 10px; color: rgb(85, 85, 85); vertical-align: middle; border-style: solid; border-width: 1px; border-color: rgb(204, 204, 204) rgb(204, 204, 204) rgb(187, 187, 187); border-radius: 3px; box-shadow: rgb(187, 187, 187) 0px -1px 0px inset; background-color: rgb(252, 252, 252); }
+.markdown-preview[data-use-github-style] a { color: rgb(51, 122, 183); }
+.markdown-preview[data-use-github-style] code { color: inherit; }
+.markdown-preview[data-use-github-style] pre.editor-colors { padding: 0.8em 1em; margin-bottom: 1em; font-size: 0.85em; border-radius: 4px; overflow: auto; }
+.scrollbars-visible-always .markdown-preview pre.editor-colors::shadow .vertical-scrollbar, .scrollbars-visible-always .markdown-preview pre.editor-colors::shadow .horizontal-scrollbar { visibility: hidden; }
+.scrollbars-visible-always .markdown-preview pre.editor-colors:hover::shadow .vertical-scrollbar, .scrollbars-visible-always .markdown-preview pre.editor-colors:hover::shadow .horizontal-scrollbar { visibility: visible; }
+@-webkit-keyframes spinner-animation {
+  0% {
+    transform: rotateZ(0deg);
+    -webkit-animation-timing-function: cubic-bezier(0, 0, 0.8, 0.2);
+  }
+  50% {
+    transform: rotateZ(180deg);
+    -webkit-animation-timing-function: cubic-bezier(0.2, 0.8, 1, 1);
+  }
+  100% {
+    transform: rotateZ(360deg);
+  }
+}
+.loading-spinner-tiny {
+  position: relative;
+  display: block;
+  width: 1em;
+  height: 1em;
+  font-size: 16px;
+  background: radial-gradient(#528bff 0.1em, transparent 0.11em);
+}
+.loading-spinner-tiny::before,
+.loading-spinner-tiny::after {
+  content: "";
+  position: absolute;
+  z-index: 10;
+  top: 0;
+  left: 0;
+  width: inherit;
+  height: inherit;
+  border-radius: 1em;
+  border: 2px solid;
+  -webkit-animation: spinner-animation 1.2s infinite;
+  -webkit-animation-fill-mode: backwards;
+}
+.loading-spinner-tiny::before {
+  border-color: #528bff transparent transparent transparent;
+}
+.loading-spinner-tiny::after {
+  border-color: transparent #9ebeff transparent transparent;
+  -webkit-animation-delay: 0.6s;
+}
+.loading-spinner-tiny.inline-block {
+  display: inline-block;
+}
+.loading-spinner-tiny::before,
+.loading-spinner-tiny::after {
+  border-width: 1px;
+}
+.loading-spinner-small {
+  position: relative;
+  display: block;
+  width: 1em;
+  height: 1em;
+  font-size: 32px;
+  background: radial-gradient(#528bff 0.1em, transparent 0.11em);
+}
+.loading-spinner-small::before,
+.loading-spinner-small::after {
+  content: "";
+  position: absolute;
+  z-index: 10;
+  top: 0;
+  left: 0;
+  width: inherit;
+  height: inherit;
+  border-radius: 1em;
+  border: 2px solid;
+  -webkit-animation: spinner-animation 1.2s infinite;
+  -webkit-animation-fill-mode: backwards;
+}
+.loading-spinner-small::before {
+  border-color: #528bff transparent transparent transparent;
+}
+.loading-spinner-small::after {
+  border-color: transparent #9ebeff transparent transparent;
+  -webkit-animation-delay: 0.6s;
+}
+.loading-spinner-small.inline-block {
+  display: inline-block;
+}
+.loading-spinner-medium {
+  position: relative;
+  display: block;
+  width: 1em;
+  height: 1em;
+  font-size: 48px;
+  background: radial-gradient(#528bff 0.1em, transparent 0.11em);
+}
+.loading-spinner-medium::before,
+.loading-spinner-medium::after {
+  content: "";
+  position: absolute;
+  z-index: 10;
+  top: 0;
+  left: 0;
+  width: inherit;
+  height: inherit;
+  border-radius: 1em;
+  border: 2px solid;
+  -webkit-animation: spinner-animation 1.2s infinite;
+  -webkit-animation-fill-mode: backwards;
+}
+.loading-spinner-medium::before {
+  border-color: #528bff transparent transparent transparent;
+}
+.loading-spinner-medium::after {
+  border-color: transparent #9ebeff transparent transparent;
+  -webkit-animation-delay: 0.6s;
+}
+.loading-spinner-medium.inline-block {
+  display: inline-block;
+}
+.loading-spinner-large {
+  position: relative;
+  display: block;
+  width: 1em;
+  height: 1em;
+  font-size: 64px;
+  background: radial-gradient(#528bff 0.1em, transparent 0.11em);
+}
+.loading-spinner-large::before,
+.loading-spinner-large::after {
+  content: "";
+  position: absolute;
+  z-index: 10;
+  top: 0;
+  left: 0;
+  width: inherit;
+  height: inherit;
+  border-radius: 1em;
+  border: 2px solid;
+  -webkit-animation: spinner-animation 1.2s infinite;
+  -webkit-animation-fill-mode: backwards;
+}
+.loading-spinner-large::before {
+  border-color: #528bff transparent transparent transparent;
+}
+.loading-spinner-large::after {
+  border-color: transparent #9ebeff transparent transparent;
+  -webkit-animation-delay: 0.6s;
+}
+.loading-spinner-large.inline-block {
+  display: inline-block;
+}
+progress {
+  -webkit-appearance: none;
+  height: 8px;
+  border-radius: 3px;
+  background-color: #1b1d23;
+  box-shadow: inset 0 0 0 1px #181a1f;
+}
+progress::-webkit-progress-bar {
+  background-color: transparent;
+}
+progress::-webkit-progress-value {
+  border-radius: 3px;
+  background-color: #528bff;
+}
+progress:indeterminate {
+  background-image: linear-gradient(-45deg, transparent 33%, rgba(82, 139, 255, 0.2) 33%, rgba(82, 139, 255, 0.2) 66%, transparent 66%);
+  background-size: 25px 8px, 100% 100%, 100% 100%;
+  -webkit-animation: progress-buffering 5s linear 6;
+}
+@-webkit-keyframes progress-buffering {
+  100% {
+    background-position: -100px 0px;
+  }
+}
+.nuclide-blame {
+  display: flex;
+  width: 50px;
+}
+.nuclide-blame-ui-hash {
+  color: #6494ed;
+}
+.nuclide-blame-ui-hash-clickable {
+  cursor: pointer;
+}
+.nuclide-blame-ui-hash-clickable:hover {
+  text-decoration: underline;
+}
+.nuclide-blame-ui-spinner {
+  position: relative;
+  display: block;
+  width: 1em;
+  height: 1em;
+  font-size: 16px;
+  background: radial-gradient(#528bff 0.1em, transparent 0.11em);
+  align-self: center;
+  margin: 0 auto;
+}
+.nuclide-blame-ui-spinner::before,
+.nuclide-blame-ui-spinner::after {
+  content: "";
+  position: absolute;
+  z-index: 10;
+  top: 0;
+  left: 0;
+  width: inherit;
+  height: inherit;
+  border-radius: 1em;
+  border: 2px solid;
+  -webkit-animation: spinner-animation 1.2s infinite;
+  -webkit-animation-fill-mode: backwards;
+}
+.nuclide-blame-ui-spinner::before {
+  border-color: #528bff transparent transparent transparent;
+}
+.nuclide-blame-ui-spinner::after {
+  border-color: transparent #9ebeff transparent transparent;
+  -webkit-animation-delay: 0.6s;
+}
+.nuclide-blame-ui-spinner.inline-block {
+  display: inline-block;
+}
+.nuclide-blame-ui-spinner::before,
+.nuclide-blame-ui-spinner::after {
+  border-width: 1px;
+}
+.nuclide-blame-ui-spinner::before,
+.nuclide-blame-ui-spinner::after {
+  box-sizing: border-box;
+}
+
+@-webkit-keyframes RotatingBackground {
+  0% {
+    background-position-x: 0%;
+  }
+  100% {
+    background-position-x: 100%;
+  }
+}
+
+.nuclide-breakpoint-icon {
+  text-align: center;
+  display: block;
+  width: 1em;
+  color: rgba(157, 165, 180, 0.6);
+}
+.nuclide-breakpoint-icon::before {
+  font-family: 'Octicons Regular';
+  font-weight: normal;
+  font-style: normal;
+  display: inline-block;
+  line-height: 1;
+  -webkit-font-smoothing: antialiased;
+  text-decoration: none;
+  font-size: 100%;
+  width: 100%;
+  height: 100%;
+  content: "\f052";
+}
+.nuclide-current-line-highlight {
+  background-color: rgba(0, 136, 255, 0.3);
+  border-color: rgba(0, 136, 255, 0.8);
+  border-style: solid;
+  border-width: 1px;
+}
+
+.nuclide-diagnostics-gutter-ui-gutter-error {
+  color: #ff6347;
+}
+.nuclide-diagnostics-gutter-ui-gutter-warning {
+  color: #e2c08d;
+}
+.nuclide-diagnostics-gutter-ui-popup {
+  background: #21252b;
+  box-shadow: 0px 1px 4px 0px #000000;
+  position: absolute;
+  padding: 4px 10px;
+  z-index: 4;
+}
+.nuclide-diagnostics-gutter-ui-popup-header {
+  margin: -4px -10px 4px;
+  padding: 4px 10px;
+}
+.nuclide-diagnostics-gutter-ui-popup-diagnostic {
+  color: #9da5b4;
+  font-family: Menlo, Consolas, 'DejaVu Sans Mono', monospace;
+}
+.nuclide-diagnostics-gutter-ui-popup-error .nuclide-diagnostics-gutter-ui-popup-header {
+  background-color: rgba(255, 99, 71, 0.2);
+}
+.nuclide-diagnostics-gutter-ui-popup-warning .nuclide-diagnostics-gutter-ui-popup-header {
+  background-color: rgba(226, 192, 141, 0.2);
+}
+
+.bracket-matcher .region {
+  border-bottom: 1px dotted lime;
+  position: absolute;
+}
+
+.spell-check-misspelling .region {
+  border-bottom: 2px dotted rgba(255, 51, 51, 0.75);
+}
+
+pre.editor-colors,
+.host {
+  background-color: #282c34;
+  color: #abb2bf;
+}
+pre.editor-colors .line.cursor-line,
+.host .line.cursor-line {
+  background-color: rgba(153, 187, 255, 0.04);
+}
+pre.editor-colors .invisible,
+.host .invisible {
+  color: #abb2bf;
+}
+pre.editor-colors .cursor,
+.host .cursor {
+  border-left: 2px solid #528bff;
+}
+pre.editor-colors .selection .region,
+.host .selection .region {
+  background-color: #3e4451;
+}
+pre.editor-colors .bracket-matcher .region,
+.host .bracket-matcher .region {
+  border-bottom: 1px solid #528bff;
+  box-sizing: border-box;
+}
+pre.editor-colors .invisible-character,
+.host .invisible-character {
+  color: rgba(171, 178, 191, 0.15);
+}
+pre.editor-colors .indent-guide,
+.host .indent-guide {
+  color: rgba(171, 178, 191, 0.15);
+}
+pre.editor-colors .wrap-guide,
+.host .wrap-guide {
+  background-color: rgba(171, 178, 191, 0.15);
+}
+pre.editor-colors .gutter .line-number,
+.host .gutter .line-number {
+  color: #636d83;
+  -webkit-font-smoothing: antialiased;
+}
+pre.editor-colors .gutter .line-number.cursor-line,
+.host .gutter .line-number.cursor-line {
+  color: #abb2bf;
+  background-color: #2c313a;
+}
+pre.editor-colors .gutter .line-number.cursor-line-no-selection,
+.host .gutter .line-number.cursor-line-no-selection {
+  background-color: transparent;
+}
+pre.editor-colors .gutter .line-number .icon-right,
+.host .gutter .line-number .icon-right {
+  color: #abb2bf;
+}
+pre.editor-colors .gutter:not(.git-diff-icon) .line-number.git-line-removed.git-line-removed::before,
+.host .gutter:not(.git-diff-icon) .line-number.git-line-removed.git-line-removed::before {
+  bottom: -3px;
+}
+pre.editor-colors .gutter:not(.git-diff-icon) .line-number.git-line-removed::after,
+.host .gutter:not(.git-diff-icon) .line-number.git-line-removed::after {
+  content: "";
+  position: absolute;
+  left: 0px;
+  bottom: 0px;
+  width: 25px;
+  border-bottom: 1px dotted rgba(224, 82, 82, 0.5);
+  pointer-events: none;
+}
+pre.editor-colors .gutter .line-number.folded,
+.host .gutter .line-number.folded,
+pre.editor-colors .gutter .line-number:after,
+.host .gutter .line-number:after,
+pre.editor-colors .fold-marker:after,
+.host .fold-marker:after {
+  color: #abb2bf;
+}
+.comment {
+  color: #5c6370;
+  font-style: italic;
+}
+.comment .markup.link {
+  color: #5c6370;
+}
+.entity.name.type {
+  color: #e5c07b;
+}
+.entity.other.inherited-class {
+  color: #98c379;
+}
+.keyword {
+  color: #c678dd;
+}
+.keyword.control {
+  color: #c678dd;
+}
+.keyword.operator {
+  color: #abb2bf;
+}
+.keyword.other.special-method {
+  color: #61afef;
+}
+.keyword.other.unit {
+  color: #d19a66;
+}
+.storage {
+  color: #c678dd;
+}
+.storage.type.annotation,
+.storage.type.primitive {
+  color: #c678dd;
+}
+.storage.modifier.package,
+.storage.modifier.import {
+  color: #abb2bf;
+}
+.constant {
+  color: #d19a66;
+}
+.constant.variable {
+  color: #d19a66;
+}
+.constant.character.escape {
+  color: #56b6c2;
+}
+.constant.numeric {
+  color: #d19a66;
+}
+.constant.other.color {
+  color: #56b6c2;
+}
+.constant.other.symbol {
+  color: #56b6c2;
+}
+.variable {
+  color: #e06c75;
+}
+.variable.interpolation {
+  color: #be5046;
+}
+.variable.parameter {
+  color: #abb2bf;
+}
+.string {
+  color: #98c379;
+}
+.string.regexp {
+  color: #56b6c2;
+}
+.string.regexp .source.ruby.embedded {
+  color: #e5c07b;
+}
+.string.other.link {
+  color: #e06c75;
+}
+.punctuation.definition.comment {
+  color: #5c6370;
+}
+.punctuation.definition.method-parameters,
+.punctuation.definition.function-parameters,
+.punctuation.definition.parameters,
+.punctuation.definition.separator,
+.punctuation.definition.seperator,
+.punctuation.definition.array {
+  color: #abb2bf;
+}
+.punctuation.definition.heading,
+.punctuation.definition.identity {
+  color: #61afef;
+}
+.punctuation.definition.bold {
+  color: #e5c07b;
+  font-weight: bold;
+}
+.punctuation.definition.italic {
+  color: #c678dd;
+  font-style: italic;
+}
+.punctuation.section.embedded {
+  color: #be5046;
+}
+.punctuation.section.method,
+.punctuation.section.class,
+.punctuation.section.inner-class {
+  color: #abb2bf;
+}
+.support.class {
+  color: #e5c07b;
+}
+.support.type {
+  color: #56b6c2;
+}
+.support.function {
+  color: #56b6c2;
+}
+.support.function.any-method {
+  color: #61afef;
+}
+.entity.name.function {
+  color: #61afef;
+}
+.entity.name.class,
+.entity.name.type.class {
+  color: #e5c07b;
+}
+.entity.name.section {
+  color: #61afef;
+}
+.entity.name.tag {
+  color: #e06c75;
+}
+.entity.other.attribute-name {
+  color: #d19a66;
+}
+.entity.other.attribute-name.id {
+  color: #61afef;
+}
+.meta.class {
+  color: #e5c07b;
+}
+.meta.class.body {
+  color: #abb2bf;
+}
+.meta.method-call,
+.meta.method {
+  color: #abb2bf;
+}
+.meta.definition.variable {
+  color: #e06c75;
+}
+.meta.link {
+  color: #d19a66;
+}
+.meta.require {
+  color: #61afef;
+}
+.meta.selector {
+  color: #c678dd;
+}
+.meta.separator {
+  background-color: #373b41;
+  color: #abb2bf;
+}
+.meta.tag {
+  color: #abb2bf;
+}
+.underline {
+  text-decoration: underline;
+}
+.none {
+  color: #abb2bf;
+}
+.invalid.deprecated {
+  color: #523d14 !important;
+  background-color: #e0c285 !important;
+}
+.invalid.illegal {
+  color: #ffffff !important;
+  background-color: #e05252 !important;
+}
+.markup.bold {
+  color: #d19a66;
+  font-weight: bold;
+}
+.markup.changed {
+  color: #c678dd;
+}
+.markup.deleted {
+  color: #e06c75;
+}
+.markup.italic {
+  color: #c678dd;
+  font-style: italic;
+}
+.markup.heading {
+  color: #e06c75;
+}
+.markup.heading .punctuation.definition.heading {
+  color: #61afef;
+}
+.markup.link {
+  color: #c678dd;
+}
+.markup.inserted {
+  color: #98c379;
+}
+.markup.quote {
+  color: #d19a66;
+}
+.markup.raw {
+  color: #98c379;
+}
+.source.cs .keyword.operator {
+  color: #c678dd;
+}
+.source.css .property-name,
+.source.css .property-value {
+  color: #828997;
+}
+.source.css .property-name.support,
+.source.css .property-value.support {
+  color: #abb2bf;
+}
+.source.gfm .markup {
+  -webkit-font-smoothing: auto;
+}
+.source.gfm .link .entity {
+  color: #61afef;
+}
+.source.ini .keyword.other.definition.ini {
+  color: #e06c75;
+}
+.source.java .storage.modifier.import {
+  color: #e5c07b;
+}
+.source.java .storage.type {
+  color: #e5c07b;
+}
+.source.java-properties .meta.key-pair {
+  color: #e06c75;
+}
+.source.java-properties .meta.key-pair > .punctuation {
+  color: #abb2bf;
+}
+.source.js .keyword.operator {
+  color: #56b6c2;
+}
+.source.js .keyword.operator.delete,
+.source.js .keyword.operator.in,
+.source.js .keyword.operator.of,
+.source.js .keyword.operator.instanceof,
+.source.js .keyword.operator.new,
+.source.js .keyword.operator.typeof,
+.source.js .keyword.operator.void {
+  color: #c678dd;
+}
+.source.json .meta.structure.dictionary.json > .string.quoted.json {
+  color: #e06c75;
+}
+.source.json .meta.structure.dictionary.json > .string.quoted.json > .punctuation.string {
+  color: #e06c75;
+}
+.source.json .meta.structure.dictionary.json > .value.json > .string.quoted.json,
+.source.json .meta.structure.array.json > .value.json > .string.quoted.json,
+.source.json .meta.structure.dictionary.json > .value.json > .string.quoted.json > .punctuation,
+.source.json .meta.structure.array.json > .value.json > .string.quoted.json > .punctuation {
+  color: #98c379;
+}
+.source.json .meta.structure.dictionary.json > .constant.language.json,
+.source.json .meta.structure.array.json > .constant.language.json {
+  color: #56b6c2;
+}
+.source.ruby .constant.other.symbol > .punctuation {
+  color: inherit;
+}
+.source.python .keyword.operator.logical.python {
+  color: #c678dd;
+}
+.source.python .variable.parameter {
+  color: #d19a66;
+}
+</style>
+  </head>
+  <body class='markdown-preview' data-use-github-style><h3 id="-">自我介绍</h3>
+<h3 id="-rn-">现阶段RN的进展和缺陷</h3>
+<h6 id="-">大规模应用之前，需要解决的缺陷</h6>
+<ol>
+<li><p>单JSCore，跨部门合作</p>
+<ul>
+<li>bundle拆分，react-native-packager改造</li>
+<li>JSCore加载JS方式的改造，需要能够
+-</li>
+</ul>
+</li>
+<li><p>没有合适的Router</p>
+</li>
+<li>未有1.0版本，接口并非稳定</li>
+<li>包依赖众多，无法构成稳定的跨平台开发、打包、测试环境。</li>
+</ol>
+<p>首次运行npm install经常遇见下载tar包错误</p>
+<h6 id="-">官版基本原理和源代码结构</h6>
+<ol>
+<li>一个框架，一个命令，三个NPM包</li>
+<li>单JSCore，单Bundle</li>
+</ol>
+<p>针对问题1和2
+这是NPM的锅，也是今天主要讨论的问题。
+我们先看看问题是怎么产生的。</p>
+<h3 id="-">推演包依赖问题的产生的原因</h3>
+<h5 id="-">单组应用</h5>
+<p>开始一个新的项目，基本上是这样的。第一个人建立起基本的项目模板：</p>
+<pre class="editor-colors lang-text"><div class="line"><span class="text plain"><span class="meta paragraph text"><span>npm&nbsp;install&nbsp;react-native-cli&nbsp;-g</span></span></span></div><div class="line"><span class="text plain"><span class="meta paragraph text"><span>react-native&nbsp;init&nbsp;AwesomeProject</span></span></span></div><div class="line"><span class="text plain"><span class="meta paragraph text"><span>npm&nbsp;shrinkwrap</span></span></span></div><div class="line"><span class="text plain"><span class="meta paragraph text"><span>git&nbsp;push</span></span></span></div></pre><p>其他开发者：</p>
+<pre class="editor-colors lang-text"><div class="line"><span class="text plain"><span class="meta paragraph text"><span>npm&nbsp;install&nbsp;react-native-cli&nbsp;-g</span></span></span></div><div class="line"><span class="text plain"><span class="meta paragraph text"><span>git&nbsp;clone</span></span></span></div><div class="line"><span class="text plain"><span class="meta paragraph text"><span>npm&nbsp;install</span></span></span></div></pre><p>react-native init AwesomeProject这一步，约等于</p>
+<pre class="editor-colors lang-text"><div class="line"><span class="text plain"><span class="meta paragraph text"><span>mkdir&nbsp;AwesomeProject&nbsp;&amp;&amp;&nbsp;cd&nbsp;AwesomeProject</span></span></span></div><div class="line"><span class="text plain"><span class="meta paragraph text"><span>npm&nbsp;install&nbsp;react-native&nbsp;--save</span></span></span></div><div class="line"><span class="text plain"><span class="meta paragraph text"><span>copy模板（index.ios.js等）</span></span></span></div></pre><p>npm shrinkwrap这一步在项目根目录下产生了一个npm-shrinkwrap.json文件，<b>这个文件锁定了整个项目依赖的第三方组件版本</b>。因为npm上众多的源采用Semantic的版本标准，不可避免的出现这样的情况</p>
+<blockquote>
+<p>A@0.0.1 -&gt; ^B@0.0.1</p>
+</blockquote>
+<p>项目中运用了A@0.0.1的模块，依赖树可能是这样的</p>
+<blockquote>
+<p>project -&gt; A@0.0.1 -&gt; B@0.0.1</p>
+</blockquote>
+<p>当B模块发布了0.0.2版本后，其他开发者重新clone代码仓库并且npm install之后，依赖树就变成</p>
+<blockquote>
+<p>project -&gt; A@0.0.1 -&gt; B@0.0.2</p>
+</blockquote>
+<p>npm-shrinkwrap.json则可以避免这一问题的产生，因为npm install命令在构建依赖树时，package.json和npm-shrinkwrap.json文件都会产生影响，npm-shrinkwrap.json的优先级更高。</p>
+<p>shrinkwrap这一步非常重要，他保证了项目依赖树不会随着时间推移而产生变化。它保证开发、测试和上线这样一段时间内，每次构建的时候，产生的内容一致。</p>
+<h5 id="-">跨团队合作</h5>
+<p>Shrinkwrap跨团队失效</p>
+<h5 id="win-linux-mac">Win，Linux，Mac</h5>
+<p>Shrinkwrap跨平台不稳定</p>
+<!-- npm2，npm3策略不同 -->
+<p>后续的讨论内，很多地方使用了qnpm命令，qnpm是qunar内网的一个和npm同步的源，qunar内部也有很多私有模块在qnpm源上。后续讨论中需要发布一些测试用的模块。
+因为left-pad事件后，npm公源修改了unpublish的规定，为了少制造垃圾，测试放在私有源上。</p>
+<h3 id="-npm-publish-npm-install-npm-shrinkwrap-json-install-">挖一挖npm publish和npm install命令，看看npm-shrinkwrap.json怎么影响install过程</h3>
+<h5 id="npm-publish-">npm publish命令</h5>
+<p>众所周知，npm publish是将模块发布到npm源的命令。publish过程是什么？我们找个模块来看看。
+<img src="/Users/zilong/share/images/npm-publish-log.png" alt="npm-publish-log"></p>
+<p>看来publish主要分为两步：</p>
+<ol>
+<li>将代码打成tgz包，并放在npm的cache目录下。在这一步，.npm-ignore文件和package.json内的files字段配置都可以配置tgz所包含的内容。在不做任何配置的情况下，npm-shrinkwrap.json会被压进tgz包。</li>
+<li>上传tgz并更新npm源。</li>
+</ol>
+<h4 id="npm-install-">npm install过程解析</h4>
+<p>开始这一节之前，我们先约定一个模块的“简洁”程度。一个模块在分发后，不需要安装其他任何模块即可正常工作，就称为“简洁”模块，例如jQuery@2.*；否则，称为“非简洁”模块，例如react-native。注意这不是通用的叫法，只适用于本次的谈论。在写下这篇讨论时，jquery最新版为2.2.4。</p>
+<h6 id="npm-install-">npm install一个“简洁”模块</h6>
+<p>我们运行调高npm的日志等级，使用npm install jQuery --save --verbose，简单看看npm install命令会发生什么事情。
+<img src="/Users/zilong/share/images/npm-install-log-1.png" alt="npm-install-log-1"></p>
+<p>可以看到，对最简单的一个模块的install过程，主要分为3步</p>
+<ol>
+<li>从<a href="https://registry/jquery">https://registry/jquery</a>上获取安装包的信息，包含了版本历史、依赖、作者和各个版本的tgz下载链接等等。</li>
+<li>下载第一步的结果得知的tgz链接，解压缩jquery.tgz包，读取package.json的dependencies。</li>
+<li>重新解压缩jquery.tgz包到node_modules。</li>
+</ol>
+<p>非常简单，从日志上就可以对过程有一个感性的认知。那么npm install一个“非简洁”模块会怎样？</p>
+<h6 id="npm-install-">npm install一个“非简洁”模块</h6>
+<p>先做一个准备。发布一个“非简洁”模块。</p>
+<p><img src="/Users/zilong/share/images/publish-zilongA-0.0.1.png" alt="publish-zilongA-0.0.1"></p>
+<p>在明白了install的基本过程后，我们可以自己下载tgz包，观察tgz内容：</p>
+<p><img src="/Users/zilong/share/images/tar-log-zilongA-0.0.1.png" alt="tar-log-zilongA-0.0.1"></p>
+<p>这个模块虽然“非简洁”，但是依然非常简单。我们检查tgz文件内容，也基本验证了之前对publish命令的认知。
+我们这次install需要把日志等级继续调高，npm install @qnpm/zilong-a@0.0.1 --save --loglevel=silly之后会怎样？silly这一级的日志已经爆长，后面只用文字说明过程。</p>
+<ol>
+<li>从<a href="https://registry/zilongA">https://registry/zilongA</a>上获取安装包的信息，包含了版本历史、依赖、作者和各个版本的tgz下载链接等等。</li>
+<li>下载第一步的结果得知的tgz链接，解压缩zilong-a.tgz包，读取package.json的dependencies，发现其中的有jquery依赖。</li>
+<li>重复步骤1和2。直到没有更多需要下载的模块。这个例子里，下载了zilong-a.tgz和jquery.tgz。</li>
+<li>解压各个tgz包到node_modules。</li>
+</ol>
+<h6 id="-npm-shrinkwrap-json">给“非简洁”模块加入npm-shrinkwrap.json</h6>
+<p>我们给简单的给zilong-a模块升级一下，先将package.json内的version修改为0.0.2，然后将一个较低版本的jquery放入zilong-a的依赖树：</p>
+<blockquote>
+<p>   qnpm install jquery@2.2.0 --save</p>
+<p>   qnpm shrinkwrap</p>
+<p>   qnpm publish</p>
+</blockquote>
+<p>检验一下服源上的tgz的内容，npm-shrinkwrap.json已经被压入了压缩包。
+<img src="/Users/zilong/share/images/tar-log-zilongA-0.0.2.png" alt="tar-log-zilongA-0.0.2"></p>
+<p>npm install @qnpm/zilong-a@0.0.2 --save --loglevel=silly，检查对比安装0.0.1版本的日志，发现install过程产生了变化：</p>
+<ol>
+<li>第二步中不仅读取了package.json，还多了一步addShrinkwrap</li>
+<li>原来第三步中解析jquery版本的步骤被越过，直接从源上下载了2.2.0版jquery</li>
+</ol>
+<p><img src="/Users/zilong/share/images/npm-install-log-2.png" alt="npm-install-log-2"></p>
+<p>这里依然符合我们对shrinkwrap命令的认知，即shrinkwrap可以锁定版本依赖树。梳理zilong-a@0.0.2一下目前的依赖结构，目前只有两级：</p>
+<blockquote>
+<p> @qnpm/zilong-a@0.0.2 &gt; jquery@2.2.0</p>
+</blockquote>
+<p>整个下载过程是</p>
+<blockquote>
+<p>zilong-a &gt; jquery</p>
+</blockquote>
+<h6 id="-">继续将“非简洁”模块复杂化</h6>
+<p>我们继续发布@qnpm/zilong-a@0.0.3，使其依赖树加深。首先发布一个@qnpm/zilong-b@0.0.1模块，@qnpm/zilong-b依赖jquery@*;去掉@qnpm/zilong-a的jquery依赖，加入@qnpm/zilong-b@*。那么依赖结构变化为：</p>
+<blockquote>
+<p> @qnpm/zilong-a@0.0.3 &gt; @qnpm/zilong-b@0.0.1 &gt; jquery@*</p>
+</blockquote>
+<p>清理zilong-a模块并重新npm shrinkwrap，并发布</p>
+<blockquote>
+<p>rm -rf node_modules &amp;&amp; qnpm install
+qnpm shrinkwrap
+qnpm publish</p>
+</blockquote>
+<p>zilong-a@0.0.3模块依赖被锁定为 @qnpm/zilong-b@0.0.1和最新的jquery@2.2.4。那么install @qnpm/zilong-a@0.0.3会怎样？</p>
+<p><img src="/Users/zilong/share/images/npm-install-log-3.png" alt="npm-install-log-3"></p>
+<p>我们发现在安装@qnpm/zilong-a@0.0.1时理解的第三步，又发生了变化。原本应该是</p>
+<blockquote>
+<p>下载zilong-a@0.0.3.tgz &gt; 解析package.json &gt; 下载zilong-b@0.0.1 &gt; 解析package.json &gt; 下载jquery@2.2.4</p>
+</blockquote>
+<p>变成了</p>
+<blockquote>
+<p>下载zilong-a@0.0.3.tgz &gt; 解析package.json &gt; 下载zilong-b@0.0.1并且下载jquery@2.2.4</p>
+</blockquote>
+<p>可见shrinkwrap不仅仅影响了npm的版本判断，而且改变了下载流程，使得下载过程变成了并行的。
+官方在npm的github的讨论中声明：对于下载请求，没有任何的队列或者限制机制，有多少下载，就并发多少。参看<a href="https://github.com/npm/npm/issues/11117">issue11117</a>和 <a href="https://github.com/npm/npm/issues/11125">issue11125</a>，这两个问题都是因为第三方源，限制了下载请求而导致。
+这就是下载时tgz文件损坏的罪魁。即对于超级大库而言，庞大的并发请求数量造成网络负载过重；在采用不经优化的网络（比如墙内访问墙外），文件坏掉的可能性增加。shrinkwrap加剧了这个问题。</p>
+<h3 id="-">小结</h3>
+<p>我们先看一下npm官方和react-native官方两方对于shrinkwrap的态度，理一理可能的方向。</p>
+<p>####### react-native对于shrinkwrap的态度
+对于使用shrinkwrap的态度。可以发现，在github的提交记录中，直到0.22.0-rc2之前，rn的根目录下都有npm-shrinkwrap.json；但是非常有意思的是，从npm源直接下载的tgz的文件内不包含这个文件。所以我认为，在0.22.0之前，官版对于锁定版本的态度是模糊的，虽然社区内有这样的呼声。直到0.22.0-rc2，官方锁定了依赖版本，然后社区迅速的反应了安装问题。大约一个钟头后，官方不仅从发布的脚本内删除了npm shrinkwrap，并且坚决的从github的目录内删除了npm-shrinkwrap.json文件。fb的一位开发者事后在自己的facebook上回顾这个事件并写下：</p>
+<blockquote>
+<p>... This（就是npm-shrinkwrap.json文件） was added in one of the -rc releases, so finding it was fairly easy. I can&#39;t be 100% certain what was the reason, npm client is a big box of wonders.</p>
+</blockquote>
+<p>直到今天官版也没有再将这个文件加回来，可见友谊的小船已翻了个底儿朝天。</p>
+<h6 id="npm-shrinkwrap-">npm对于shrinkwrap的态度</h6>
+<p>npm大约在3.7.x前后（2016年年初）修复了一版shrinkwrap的平台依赖问题，他们的策略是“对于npm-shrinkwrap.json内的平台不兼容的模块，打出一个[warning]或者[info]及的log，然后继续安装。”这个方式感觉不是那么完美，但是对于大部分模块来说，似乎已经足够了（仍然有少量ubuntu用户在3.8.x报错）。</p>
+<p>综合来看，即使npm官方在3.7.x版本修复了shrinkwrap，考虑到众多低版本npm的使用者，react-native短期内也不可能再加入shrinkwrap。</p>
+<p>只有自己动手了。我们缺的，只是一个能够区分os的npm-shrinkwrap.json。</p>
+<h6 id="-tgz">试一试手打的tgz</h6>
+<p>我们先来制造一个darwin版本的包含npm-shrinkwrap.json的react-native包，非常简单，以qunar正在使用0.20.0版本为例：</p>
+<blockquote>
+<p>curl <a href="http://registry.npm.taobao.org/react-native/download/react-native-0.20.0.tgz">http://registry.npm.taobao.org/react-native/download/react-native-0.20.0.tgz</a> &gt; react-native-0.20.0.tgz
+tar zxvf react-native-0.20.0.tgz &amp;&amp; cd package
+npm install &amp;&amp; npm shrinkwrap &amp;&amp; rm -rf node_modules</p>
+</blockquote>
+<p>整个过程就是下载、解压、install和shrinkwrap。
+开始下一步打包前，我们对文件做一个小小的修改，以验证我们自己的tgz也可以生效。我们将diff@2.2.3修改为diff@2.2.2。</p>
+<p><img src="/Users/zilong/share/&apos;./images/change-shrinkwrap.png&apos;" alt="change-shrinkwrap"></p>
+<blockquote>
+<p>cd .. &amp;&amp; tar zcvf react-native-0.20.0-shrinked-darwin.tgz package</p>
+</blockquote>
+<p>删除node_modules然后重新tar打包。react-native-0.20.0-shrinked-darwin.tgz比react-native-0.20.0.tgz里面仅仅多了一个npm-shrinkwrap.json。
+为了验证这个shrinkwrap会生效，我们在开始打包之前对文件</p>
+<h3 id="-">方案</h3>
+<ol>
+<li>没有考虑操作系统的差异</li>
+<li>没有考虑增加网络负载优化</li>
+</ol>
+<p>回到解决方案。对于问题2，我们只需要切换一个合适的npm源；同时建议搭建私有源时，注意网络的配置。
+但是对于问题1，就不是切换NPM源可以搞定的了。最理想的状况是npm官方解决shrinkwrap的问题，并且rn官方认可了这个fix，重新</p>
+<h3 id="-">总结</h3></body>
+</html>
