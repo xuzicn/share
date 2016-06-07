@@ -1,23 +1,32 @@
 ### 现阶段RN的状况
-首先一张图极简的说明官方版RN的运行结构，单个的JSCore通过http加载了一个唯一的JSBundle，所有的JS都运行在一个JS上下文。
+首先用一张图极简图说明官方版RN的JavaScript运行方式，官版的RN是使用了单个JSCore通过http加载了一个唯一的JSBundle，所有的JS都运行在一个JS上下文。
 
 ![official-context](./images/official-context.png)
 
-这明显不适合多团队合作，一个JSCore内代码会互相影响。业务线越多，互相影响就越大。应该是各个业务线拥有自己的JSCore，保持上下文这一级的隔离。
-同时一个RN的js bundle体积非常庞大，即使不加入任何业务代码，minify之后仍然有600k左右，那么将RN自身的代码和业务代码拆开打包，也是必须要做的一件事。
+这明显不适合多团队合作，一个JSCore内代码会互相影响。业务线越多，互相影响就越大。应该是各个业务线拥有自己的JSCore，保持上下文的独立。
 
-所以对业务线众多的公司而言，RN的运行结构应该是这样：将拆分出的RN代码拆包为platform.bundle和biz.bundle；platform.bundle内置在应用里作为公用的基础JS库，每一个JSCore启动时，首先应加载platform.bundle；在platform.bundle加载结束后，再通过网络或者离线包加载biz.bundle。去哪儿已经完成了这一步的改造，大略的结构变为：
+同时一个RN的js bundle体积非常庞大，即使不加入任何业务代码，minify之后仍然有600k左右。将RN自身的代码和业务代码拆开打包，也是必须要做的一件事。
+
+那么对业务线众多的公司而言，众多JSCore应该是是这样的关系：
 
 ![qunar-context](./images/qunar-context.png)
 
-在完成上述改造的同时，我们也为业务开发的同事提供一个简单的壳应用，这个壳应用通过本地的http开发服务（react-native-packager)，动态的加载platform.bundle和biz.bundle；在一个新的业务上线的时候，我们只需要在服务器上放入一个小的biz.bundle即可。
+首先，我们将RN代码拆包为platform.bundle和biz.bundle。platform.bundle包含所有RN的代码，biz.bundle仅仅包含业务代码。
 
-但是，在我们在修改官版RN的过程中，遇到两个问题，首先就是React Native包依赖众多（1000多个npm包），无法构成稳定的跨平台开发、打包、测试环境；同时，我们从github上fork过来的react-native@0.20.0版的代码，在npm install的时候，经常被网络错误随机中断在某个模块，但是单个安装中断的模块又没有问题。
+然后，再将platform.bundle内置在应用里作为公用的基础JS库，每一个JSCore启动时，应同时加载platform.bundle并按需加载某一个biz.bundle。去哪儿已经完成了这一步的改造。
 
-我们一起来看一看，这两个问题的产生原因。
+<!-- 在完成上述改造的同时，我们也提供一个简单的壳应用，这个壳应用通过本地的http开发服务（react-native-packager)，动态的加载platform.bundle和biz.bundle。在业务开发时只需要安装简单的壳应用即可开始开发测试，而不必编译主客户端。
+
+在业务代码上线的时候，多数情况下我们只需要在服务器上放入biz.bundle即可。 -->
+
+但是，在我们在修改官版RN的过程中，遇到两个问题，首先就是RN的包依赖众多（1000多个npm包），无法构成稳定的跨平台开发、打包、测试环境
+
+第二，我们从github上fork过来的react-native@0.20.0版的代码，在npm install的时候，经常被网络错误随机中断在某个模块，但是单个安装中断的模块又没有问题。
+
+我们一起来看一看，这两个问题的产生原因。我们先看看对于单业务线使用RN的情况。
 
 
-### RN包依赖问题的产生的原因
+### 问题的产生的原因
 
 ##### 单个项目组应用RN
 对于开发者来说，开始一个新的项目，基本上是这样的。首先，拓荒者建立起基本的项目模板并推入代码仓库：
@@ -27,16 +36,18 @@
     npm shrinkwrap
     git push
 
-然后，其他开发者clone仓库：
+然后，其他开发者通过git clone && npm install来跟进：
 
     npm install react-native-cli -g
     git clone
     npm install
 
-注意一下npm shrinkwrap，这一步在项目根目录下产生了一个npm-shrinkwrap.json文件，<b>这个文件锁定了整个项目依赖的第三方组件版本</b>。因为npm上众多的源采用Semantic的版本标准，存在大量的这样的情况
+注意一下npm shrinkwrap，这一步在项目根目录下产生了一个npm-shrinkwrap.json文件，<b>这个文件锁定了整个项目依赖的第三方组件版本</b>。
+
+因为npm上众多的源都存在大量的模糊的依赖
 > A@0.0.1 -> ^B@0.0.1
 
-如果项目中运用了A@0.0.1的模块，首次install后，依赖树可能是这样的
+如果项目中运用了A@0.0.1的模块，首次install后，依赖树是这样的
 > project -> A@0.0.1 -> B@0.0.1
 
 如果没有shrinkwrap这一步，当B模块发布了0.0.2版本后，其他开发者重新clone代码仓库并且npm install之后，依赖树就变成
@@ -44,13 +55,19 @@
 
 npm-shrinkwrap.json则可以避免这一问题的产生，因为npm install命令在构建依赖树时，package.json和npm-shrinkwrap.json文件都会产生影响，而npm-shrinkwrap.json的优先级更高。这一步非常重要，它保证了一个项目在开发、测试和上线这样一个相对较长的时间内，每个阶段构建代码的时候产生的内容一致。这是对产品稳定性的重要的保障手段。
 
+这个命令在构建NodeJS的应用时，非常有必要。对于RN来说，尤其是需要跨组合作的情况下，这个机制就失效了。
+
 ##### 众多业务线共同使用RN
-我们之前已经提到多个业务线共同使用RN的情况下，拆包是一个必须的过程。在这个场景之下，由于RN的官方包内没有加入shrinkwrap，保证众多开发组的依赖树的一致性就变成了问题。试想一下，在公共技术组发布platform.bundle后，如果有关键组件发布了更新，业务部门在install react-native时一定会产生一个不同的依赖树结构；在依赖树都不稳定的情况下，拆开的platform.bundle和biz.bundle会发生什么问题是无法预测的。
+首先要指明，RN的官方包内没有加入shrinkwrap，也就是说今天install RN@0.20.0和半个月后install RN@0.20.0，模块依赖树可能会不同。
+
+我们之前已经提到多个业务线共同使用RN的情况下，拆包是一个必须的过程；由于公用一个platform.bundle，那么对于各个业务线来说，npm install指定版本的RN时，必须构造出一个与构建platform.bundle时相同的包依赖结构。否则，拆开的platform.bundle和biz.bundle一起运行时会发生什么问题，这是无法预测的。
 
 
-退一步讲，对于不考虑拆包，但是Windows开发者和OS X混搭的开发组来说，仅仅使用npm shrinkwrap锁定依赖树也是不可行的，因为RN依赖了一个OS X专有的模块fsevents。Mac系统shrinkwrap、签入代码后，Windows系统根本就无法运行npm install，fsevents挡住了windows的安装。
+另外一个问题就是，对于Windows开发者和OS X混搭的开发组，仅仅使用npm shrinkwrap锁定依赖树也是不可行的，因为RN依赖了一个OS X专有的模块fsevents。Mac系统shrinkwrap、签入代码后，Windows系统根本就无法运行npm install，fsevents挡住了windows的安装。
 
-讨论解决方案之前，我们先挖一挖npm publish和npm install命令，看看npm-shrinkwrap.json是怎样影响install过程的。在后续的讨论内，很多地方使用了qnpm命令，qnpm是qunar内网的一个和npm同步的源，qunar内部也有很多私有模块在qnpm源上。后续讨论中需要发布一些测试用的模块。因为left-pad事件后，npm公源修改了unpublish的规定，为了少制造垃圾，测试放在私有源上。
+讨论解决方案之前，我们先挖一挖npm publish和npm install命令，看看npm-shrinkwrap.json是怎样影响install过程的。
+
+在后续的讨论内，很多地方使用了qnpm命令，qnpm是qunar内网的一个和npm同步的源。为了减少垃圾，测试npm所需的模块都发布在了私有源上。
 
 <!-- npm2，npm3策略不同 -->
 
@@ -58,15 +75,18 @@ npm-shrinkwrap.json则可以避免这一问题的产生，因为npm install命�
 ### 挖一挖npm publish和npm install命令
 
 ##### npm publish过程解析
-先来看看publish过程。众所周知，npm publish是将模块发布到npm源的命令。publish过程是怎样的？我们发布一个模块试试，做一个感性的认知。
+先来看看publish过程。众所周知，npm publish是将模块发布到npm源的命令。我们发布一个模块试试，对这个过程做一个感性的认知。
 ![npm-publish-log](./images/npm-publish-log.png)
 
-我认为可以将publish分为两步：
+这里我发布了一个非常干净的模块，只包含一个Packager.json和index.js，并且没有任何依赖。对日志做一个基本的解读，发现这个过程可以分为两步：
 
-1. 将代码打成tgz包，并放在npm的cache目录下。在这一步，.npm-ignore文件和package.json内的files字段配置都可以配置tgz所包含的内容。npm-shrinkwrap.json会被压进tgz包，这一点将在后面验证。
+1. step1红框内的，addLocalDirectory到tarball这4行表明将代码打成tgz包。随后的步骤将tgz放在npm的cache目录下。在这一步，.npm-ignore文件和package.json内的files字段配置都可以配置tgz所包含的内容。
 2. 上传tgz并更新npm源。
 
+
 #### npm install过程解析
+下面我们观察一下install的过程。
+
 开始分析install过程之前，我们先约定一个“简洁模块”的叫法。一个模块在install之后，不会引入于其他任何模块，就称为“简洁”模块，例如jQuery@2.\*；否则，称为“非简洁”模块，例如react-native。注意这不是通用的叫法，只适用于本次的谈论。在写下这篇讨论时，jquery最新版为2.2.4。
 
 ###### npm install一个“简洁”模块
@@ -75,8 +95,8 @@ npm-shrinkwrap.json则可以避免这一问题的产生，因为npm install命�
 
 可以看到，对“简洁模块”的install过程，主要分为3步
 
-1. http get了一个地址[https://registry/jquery](https://registry/jquery)。可以在Chrome内打开链接自行尝试，这个http的链接内是jquery这个模块的基本信息，包含了版本历史、依赖、作者和各个版本的tgz下载链接等等。由于我们没有指定安装版本，这个http返回的信息内的下载链接是jquery@2.2.4版的。
-2. 下载第一步的结果得知的tgz链接，并解析tgz的依赖。
+1. http get了一个地址[https://registry.npm.taobao.org/jquery](https://registry.npm.taobao.org/jquery)。可以在Chrome内打开链接自行尝试，这个http的链接内是jquery这个模块的基本信息，包含了版本历史、依赖、作者和各个版本的tgz下载链接等等。
+2. 根据第一步内的数据和版本分析，下载第一步的结果得知的tgz链接。下载完成后解析jquery.tgz的依赖树。
 3. 解压缩jquery.tgz包到node_modules并完成安装过程。
 
 第二步复杂一点，稍作解释：
@@ -111,7 +131,7 @@ addRemoteTarball这个操作，执行了tgz的下载操作，并且将下载文�
 简言之，npm install是一个不停的发现依赖模块、下载文件、解析依赖，直到没有更多模块需要下载，随后一起解压到node_modules目录的过程。
 
 ###### 给“非简洁”模块加入npm-shrinkwrap.json
-我们给简单的给zilong-a模块升级一下，先将package.json内的version修改为0.0.2，然后将一个较低版本的jquery放入zilong-a的依赖树：
+我们给zilong-a模块升级一下，先将package.json内的version修改为0.0.2，然后将一个较低版本的jquery放入zilong-a的依赖树：
 
     qnpm install jquery@2.2.0 --save
     qnpm shrinkwrap
@@ -120,10 +140,12 @@ addRemoteTarball这个操作，执行了tgz的下载操作，并且将下载文�
 重新检验一下服源上的tgz的内容，发现npm-shrinkwrap.json已经被压入了压缩包。
 ![tar-log-zilongA-0.0.2](./images/tar-log-zilongA-0.0.2.png)
 
-npm install @qnpm/zilong-a@0.0.2 --loglevel=silly。检查对比安装0.0.1版本的日志，发现install过程产生了变化，截取中间重要变化来说明问题，看截图：
+运行npm install @qnpm/zilong-a@0.0.2 \-\-loglevel=silly。检查对比安装0.0.1版本的日志，发现install过程产生了变化，截取中间重要变化来说明问题，看截图：
 ![npm-install-log-2](./images/npm-install-log-2.png)
 
-我们发现，在解析完zilong-a@0.0.2的依赖时，加入了addShrinkwrap的步骤，这一步读取了npm-shrinkwrap.json内容；然后直接进入了jquery@2.2.0的下载和解析步骤，并没有从npm上获取jquery的基本信息，也就是说jquery的安装过程被提前了。这一次尝试后，我们初步厘清了npm-shrinkwrap.json对安装过程的影响，即npm-shrinkwrap.json不仅影响安装结果，也会改变安装的下载顺序。
+我们发现，在解析完zilong-a@0.0.2的依赖时，加入了addShrinkwrap的步骤，这一步读取了zilong-a@0.0.2的npm-shrinkwrap.json内容。随后直接进入了jquery@2.2.0的下载和解析步骤，并没有从npm上获取jquery的基本信息，也就是说jquery的安装过程被提前了。
+
+这一次尝试后，我们初步厘清了npm-shrinkwrap.json对安装过程的影响，即npm-shrinkwrap.json不仅影响安装结果，也会改变安装的下载顺序。
 
 梳理zilong-a@0.0.2一下目前的依赖结构，目前只有两级：
 >  @qnpm/zilong-a@0.0.2 > jquery@2.2.0
@@ -149,17 +171,17 @@ npm install @qnpm/zilong-a@0.0.2 --loglevel=silly。检查对比安装0.0.1版�
 
 可见shrinkwrap内的依赖的下载过程是并行的。似乎可以猜到tgz损坏的原因了，巨大的并发量导致了网络拥塞，最终导致下载失败。
 
-官方在npm的github的讨论中说：对于下载请求，没有任何的队列或者限制机制，有多少下载的包，就并发多少。在npm的github有一些讨论是关于这个机制的，起因都是因为开发者使用了第三方源，而源服务器限制了下载请求而导致安装失败。有兴趣的同学可以在分享后参看[issue11117](https://github.com/npm/npm/issues/11117)和 [issue11125](https://github.com/npm/npm/issues/11125)。
+官方在npm的github的讨论中说：对于下载请求，没有任何的队列或者限制机制，有多少需要下载的包，就并发多少。在npm的github有一些issue是关于这个机制的，起因都是因为开发者使用了第三方源，而源服务器限制了下载请求而导致安装失败。有兴趣的同学可以在分享后参看[issue11117](https://github.com/npm/npm/issues/11117)和 [issue11125](https://github.com/npm/npm/issues/11125)。
 
-在采用不经优化的网络（比如GFW墙内访问墙外）上使用超级大库，shrinkwrap可能会加剧网络问题。
+搞清楚原因，tgz损坏的故障就是小case，我们fork过来的react-native源代码内的npm-shrinkwrap的模块地址全部指向了npm公有源，简单的做一下替换，全部切换到私有源上或者cnpm源上，基本就解决了安装失败的问题。
 
-搞清楚原因，tgz损坏的故障就是小case，我们fork过来的react-native源代码内的npm-shrinkwrap的模块地址全部指向了npm公有源，简单的做一下替换，全部切换到私有源上或者cnpm源上，基本就解决了安装失败的问题。网络问题很easy的解决了，但是包依赖的问题还在。
+网络问题很easy的解决了，但是包依赖的问题还在，即shrinkwrap命令不区分平台。
 
 ### 探讨可能的方案
 在考虑解决方式前，我们先看一下react-native官方对于shrinkwrap的态度，看看官方有没有可能解决这个问题。
 
 <!-- ###### react-native官方对于shrinkwrap的态度 -->
-查阅github提交记录可以发现，直到0.22.0-rc2之前，rn项目的根目录下都有npm-shrinkwrap.json文件；有意思的是，从npm源直接下载的tgz的文件内不包含这个文件。也就是说，facebook的开发们曾经使用shrinkwrap统一了所有RN contributor的依赖树，但是并不打算统一其他RN使用者的依赖树。这时，官版对于锁定版本的态度是模糊的。在社区的要求下，facebook将npm-shrinkwrap.json加入了0.22.0-rc2，然后社区内的尝鲜者们反映了安装失败的问题。大约一个钟头后，官方不仅从发布的脚本内删除了npm shrinkwrap命令，并且坚决的从github的目录内删除了npm-shrinkwrap.json文件。fb的一位开发者事后在自己的facebook上回顾这个事件并如是说：
+查阅github提交记录可以发现，直到0.22.0-rc2之前，rn项目的根目录下都有npm-shrinkwrap.json文件；有意思的是，从npm源直接下载的tgz的文件内不包含这个文件。也就是说，facebook的开发们曾经使用shrinkwrap统一了所有RN contributor的依赖树，但是并不打算统一其他RN使用者的依赖树。在社区的要求下，facebook将npm-shrinkwrap.json加入了0.22.0-rc2，然后社区内的尝鲜者们反映了安装失败的问题。大约一个钟头后，官方不仅从发布的脚本内删除了npm shrinkwrap命令，并且坚决的从github的目录内删除了npm-shrinkwrap.json文件。fb的一位开发者事后在自己的facebook上回顾这个事件时如是说：
 > ... This（注：就是npm-shrinkwrap.json文件） was added in one of the -rc releases, so finding it was fairly easy. I can't be 100% certain what was the reason, npm client is a big box of wonders.
 
 直到今天官版也没有再将这个文件加回来，可见友谊的小船已翻了个底儿朝天，大概短期内我们再也不会在官版发布的模块里看见shrinkwrap的身影了。
